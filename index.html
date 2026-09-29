@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stakeholder360: Interactive Scenario Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel CDN for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-hover:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            background: rgba(30, 41, 59, 0.85);
+        }
+        .glow-indigo {
+            box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- ICON COMPONENTS (Inline SVG Helper) ---
+        const Icon = ({ name, className = "w-5 h-5" }) => {
+            const icons = {
+                users: <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
+                building: <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2 M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2 M10 6h4 M10 10h4 M10 14h4 M10 18h4" />,
+                sliders: <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />,
+                chat: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+                chart: <path d="M18 20V10M12 20V4M6 20v-6" />,
+                fileText: <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />,
+                checkCircle: <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3" />,
+                alertTriangle: <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z M12 9v4 M12 17h.01" />,
+                refresh: <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />,
+                chevronRight: <path d="m9 18 6-6-6-6" />,
+                award: <path d="M12 15l-2 5l3-2l3 2l-2-5M12 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16z" />,
+                info: <><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></>,
+                dollar: <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
+                shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+                zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+                download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            };
+            return (
+                <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {icons[name] || null}
+                </svg>
+            );
+        };
+
+        const SCENARIOS = [
+            {
+                id: 'city_green_energy',
+                title: 'Municipal Clean Energy Grid Transition',
+                subtitle: 'City Planning & Public Administration Simulation',
+                role: 'Chief Sustainability Officer',
+                context: 'The city of Valenport has mandated a 100% transition to clean energy within 3 years. You must build a new solar/wind infrastructure hub while balancing land usage, power grid reliability, utility costs, and community displacements.',
+                initialMetrics: {
+                    budget: 85,          // $ Millions remaining
+                    publicTrust: 65,     // % Overall approval
+                    sustainability: 40,  // % Clean energy goal achieved
+                    gridReliability: 80, // % Power stability
+                    regulatoryCompliance: 90
+                },
+                stakeholders: [
+                    {
+                        id: 'mayor',
+                        name: 'Mayor Elena Vance',
+                        role: 'City Administration',
+                        avatar: '👩‍💼',
+                        influence: 9, // 1-10 scale
+                        sentiment: 60, // -100 to 100
+                        priority: 'Re-election & Staying within municipal budget',
+                        concern: 'Fearing public voter backlash if electricity prices spike or blackouts occur.',
+                        dialogue: {
+                            greeting: "We need this renewable park built, but I can't afford a public tax revolt right before the election.",
+                            questions: [
+                                { text: "What is your primary constraint?", answer: "Budget flexibility is zero. If costs overrun by more than $15M, I will have to veto the expansion." },
+                                { text: "How do you feel about fast-tracking zoning laws?", answer: " risky. If we bypass neighborhood consultations, residents will protest outside City Hall." }
+                            ]
+                        }
+                    },
+                    {
+                        id: 'ngo',
+                        name: 'Marcus Thorne',
+                        role: 'EcoAlliance NGO Director',
+                        avatar: '🌿',
+                        influence: 7,
+                        sentiment: 40,
+                        priority: 'Zero carbon emissions & biodiversity protection',
+                        concern: 'Worried the proposed solar array encroaches on local wetlands.',
+                        dialogue: {
+                            greeting: "Clean energy shouldn't destroy local biodiversity. Protecting the wetlands is non-negotiable.",
+                            questions: [
+                                { text: "What compromise would you accept on wetland construction?", answer: "If you fund an ecological corridor and wildlife conservation trust, we will support the northern parcel." },
+                                { text: "What if we delay the project to run full environmental studies?", answer: "Delay is better than ecological damage! We will back you if you prioritize thorough audits." }
+                            ]
+                        }
+                    },
+                    {
+                        id: 'utility',
+                        name: 'David Sterling',
+                        role: 'GridPower Utility CEO',
+                        avatar: '⚡',
+                        influence: 8,
+                        sentiment: 20,
+                        priority: 'Grid stability, profit margins & infrastructure security',
+                        concern: 'Intermittent renewable energy could destabilize the current grid without gas backup.',
+                        dialogue: {
+                            greeting: "Intermittent solar is fine until the sun goes down and my grid collapses. We need battery storage or gas backup.",
+                            questions: [
+                                { text: "Can GridPower co-invest in battery storage technology?", answer: "Only if the city grants us a 10-year exclusive utility distribution monopoly." },
+                                { text: "What is the biggest operational risk you see?", answer: "Rushing phase 1 without grid upgrades will lead to rolling summer brownouts." }
+                            ]
+                        }
+                    },
+                    {
+                        id: 'citizens',
+                        name: 'Brenda Kowalski',
+                        role: 'Valenport Neighborhood Coalition',
+                        avatar: '🏠',
+                        influence: 6,
+                        sentiment: 30,
+                        priority: 'Utility rate stability, noise mitigation & property values',
+                        concern: 'Fears high monthly electric bills and unsightly transmission towers near residential zones.',
+                        dialogue: {
+                            greeting: "Working-class families can't afford a 25% bump in monthly electric bills to pay for green ideology.",
+                            questions: [
+                                { text: "How can we win community buy-in?", answer: "Guarantee fixed utility rate caps for 5 years and keep transmission towers out of residential view." },
+                                { text: "Would community profit-sharing or solar rebates help?", answer: "Yes! If residents receive rooftop solar subsidies or lower rates, opposition will vanish." }
+                            ]
+                        }
+                    }
+                ],
+                rounds: [
+                    {
+                        round: 1,
+                        title: 'Site Selection & Environmental Impact',
+                        dilemma: 'Where should the primary 150MW Solar & Wind Array be built?',
+                        options: [
+                            {
+                                text: 'Option A: North Wetland Valley (Cheapest & fastest development)',
+                                summary: 'Build on city-owned land in the north valley. Low capital cost, but risks local wetland ecosystem.',
+                                impact: { budget: -10, publicTrust: -15, sustainability: +25, gridReliability: +10, regulatoryCompliance: -20 },
+                                sentimentChange: { mayor: +15, ngo: -40, utility: +10, citizens: 0 },
+                                consequence: 'Construction begins ahead of schedule, but EcoAlliance files an injunction citing ecological destruction.'
+                            },
+                            {
+                                text: 'Option B: Redevelop Abandoned Industrial District (Brownfield site)',
+                                summary: 'Higher toxic cleanup costs, but avoids natural habitats and enjoys strong neighborhood approval.',
+                                impact: { budget: -25, publicTrust: +20, sustainability: +20, gridReliability: +10, regulatoryCompliance: +15 },
+                                sentimentChange: { mayor: -10, ngo: +30, utility: -5, citizens: +25 },
+                                consequence: 'Environmental groups and residents celebrate, though budget constraints tighten significantly.'
+                            },
+                            {
+                                text: 'Option C: Hybrid Distributed Solar (Rooftops + Small Rural Plots)',
+                                summary: 'Subsidize residential rooftop solar and smaller farms. High utility complexity, lower immediate power yield.',
+                                impact: { budget: -18, publicTrust: +15, sustainability: +15, gridReliability: -15, regulatoryCompliance: +10 },
+                                sentimentChange: { mayor: 0, ngo: +15, utility: -30, citizens: +35 },
+                                consequence: 'Citizens love the local subsidies, but Utility CEO Sterling warns of grid instability without centralized storage.'
+                            }
+                        ]
+                    },
+                    {
+                        round: 2,
+                        title: 'Grid Reliability & Battery Backups',
+                        dilemma: 'How will you guarantee power supply during peak night hours and cloudy periods?',
+                        options: [
+                            {
+                                text: 'Option A: Maintain Natural Gas Peaker Plant as Backup',
+                                summary: 'Guarantees 100% grid reliability and cheap backup power, but angers climate advocates.',
+                                impact: { budget: -5, publicTrust: -10, sustainability: -15, gridReliability: +25, regulatoryCompliance: -5 },
+                                sentimentChange: { mayor: +10, ngo: -35, utility: +30, citizens: +5 },
+                                consequence: 'Grid reliability is solid, but NGO groups launch a public campaign against "greenwashing".'
+                            },
+                            {
+                                text: 'Option B: Invest in High-Capacity Battery Energy Storage System (BESS)',
+                                summary: 'Fully green and modern solution, but capital costs are immense.',
+                                impact: { budget: -30, publicTrust: +15, sustainability: +20, gridReliability: +15, regulatoryCompliance: +15 },
+                                sentimentChange: { mayor: -20, ngo: +25, utility: +15, citizens: +10 },
+                                consequence: 'The city achieves state-of-the-art storage capabilities, but exhausts almost all project reserves.'
+                            },
+                            {
+                                text: 'Option C: Institute Peak Smart-Grid Rationing & Rate Offsets',
+                                summary: 'Incentivize reduced power usage during peak hours through variable pricing.',
+                                impact: { budget: -5, publicTrust: -25, sustainability: +10, gridReliability: +5, regulatoryCompliance: 0 },
+                                sentimentChange: { mayor: -15, ngo: +5, utility: -10, citizens: -40 },
+                                consequence: 'Neighborhood groups complain about unfair surge pricing during heatwaves.'
+                            }
+                        ]
+                    },
+                    {
+                        round: 3,
+                        title: 'Rate Hikes & Cost Allocation',
+                        dilemma: 'A $12M funding gap has emerged due to global supply chain delays. How do you cover it?',
+                        options: [
+                            {
+                                text: 'Option A: Pass a 6% Utility Tariff on Residential Consumers',
+                                summary: 'Covers the deficit completely without city tax debt, but burden falls on citizens.',
+                                impact: { budget: +12, publicTrust: -30, sustainability: 0, gridReliability: 0, regulatoryCompliance: 0 },
+                                sentimentChange: { mayor: -25, ngo: 0, utility: +15, citizens: -50 },
+                                consequence: 'Widespread public protests hit City Hall; consumer trust plummets to historic lows.'
+                            },
+                            {
+                                text: 'Option B: Issue Municipal Green Bonds & Commercial Tax Credit',
+                                summary: 'Spread financing over 15 years via municipal bond debt.',
+                                impact: { budget: +8, publicTrust: +5, sustainability: +5, gridReliability: 0, regulatoryCompliance: +10 },
+                                sentimentChange: { mayor: -5, ngo: +10, utility: +10, citizens: +10 },
+                                consequence: 'Financing is stabilized smoothly with balanced stakeholder backing.'
+                            },
+                            {
+                                text: 'Option C: Cut Project Scope by 25% (Scale down wind farm capacity)',
+                                summary: 'Avoids debt and price hikes, but fails long-term clean energy targets.',
+                                impact: { budget: +15, publicTrust: -5, sustainability: -25, gridReliability: -10, regulatoryCompliance: -15 },
+                                sentimentChange: { mayor: +10, ngo: -30, utility: -10, citizens: +5 },
+                                consequence: 'The project stays under budget, but fails the city council’s clean energy mandate timeline.'
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                id: 'ai_ethics_launch',
+                title: 'Corporate AI Deployment & Data Privacy Dilemma',
+                subtitle: 'Technology & Corporate Governance Simulation',
+                role: 'VP of Product & AI Ethics Director',
+                context: 'AuraTech is launching "AuraMind," an AI healthcare assistant that diagnoses early patient risks using medical records. Tensions are high between commercial speed-to-market, patient privacy regulations, internal engineering pressure, and consumer trust.',
+                initialMetrics: {
+                    budget: 100,          // Commercial runway ($M)
+                    publicTrust: 70,     // Brand Reputation
+                    sustainability: 85,  // Operational Ethics
+                    gridReliability: 90, // Model Accuracy / Product Performance
+                    regulatoryCompliance: 60
+                },
+                stakeholders: [
+                    {
+                        id: 'board',
+                        name: 'Victoria Cross',
+                        role: 'Board Chair & Lead Investor',
+                        avatar: '💼',
+                        influence: 9,
+                        sentiment: 50,
+                        priority: 'Quarterly profitability, market launch speed & market valuation',
+                        concern: 'Delays will allow rival competitors to dominate the marketplace first.',
+                        dialogue: {
+                            greeting: "We have spent $40M on AuraMind. If we miss Q3 launch, shareholders will initiate a board restructuring.",
+                            questions: [
+                                { text: "What is your stance on regulatory compliance delays?", answer: "Compliance is necessary, but perfectionism is deadly. Launch first, patch later." },
+                                { text: "Will the board support ethical AI auditing costs?", answer: "Only if it doesn't push back our public go-to-market date by more than 30 days." }
+                            ]
+                        }
+                    },
+                    {
+                        id: 'tech_lead',
+                        name: 'Dr. Aris Thorne',
+                        role: 'Chief AI Research Scientist',
+                        avatar: '💻',
+                        influence: 7,
+                        sentiment: 65,
+                        priority: 'Model accuracy, safety guardrails & unbiased training data',
+                        concern: 'Model exhibits 12% higher error rate in underrepresented demographic groups.',
+                        dialogue: {
+                            greeting: "If we deploy AuraMind today, it will misdiagnose minority patient groups at an unacceptable rate. We need 3 more months.",
+                            questions: [
+                                { text: "Can we patch the bias after initial launch?", answer: "Ethically, no. Misdiagnosis in medical AI can lead to real human health harm." },
+                                { text: "What resources do you need to fix the dataset bias?", answer: "An additional $4M for targeted demographic clinical trials and 6 weeks of retraining." }
+                            ]
+                        }
+                    },
+                    {
+                        id: 'regulator',
+                        name: 'Director Samuel Vance',
+                        role: 'Federal Health Data Privacy Oversight',
+                        avatar: '⚖️',
+                        influence: 8,
+                        sentiment: 30,
+                        priority: 'Strict HIPAA compliance, data privacy & patient consent',
+                        concern: 'AuraMind uses anonymized patient data harvested without explicit opt-in consent.',
+                        dialogue: {
+                            greeting: "Anonymized data is still identifiable under advanced ML reconstruction. We are watching AuraTech closely.",
+                            questions: [
+                                { text: "What triggers a federal audit?", answer: "Launching without explicit patient opt-in consent forms will trigger an immediate antitrust and privacy investigation." },
+                                { text: "Is synthetic data acceptable for retraining?", answer: "Yes, provided the methodology is independently peer-reviewed." }
+                            ]
+                        }
+                    },
+                    {
+                        id: 'advocate',
+                        name: 'Maya Lin',
+                        role: 'Digital Rights & Patient Advocacy Lead',
+                        avatar: '🛡️',
+                        influence: 6,
+                        sentiment: 45,
+                        priority: 'Patient data sovereignty, algorithmic transparency & non-discrimination',
+                        concern: 'Fears corporate monetization of vulnerable health profiles.',
+                        dialogue: {
+                            greeting: "Patients deserve to know if an algorithm is making decisions about their healthcare treatment plans.",
+                            questions: [
+                                { text: "What would gain your endorsement?", answer: "Open-source safety audits, full algorithmic transparency, and zero data monetization." },
+                                { text: "How would a breach or error affect public sentiment?", answer: "We will launch a global consumer boycott of AuraTech products." }
+                            ]
+                        }
+                    }
+                ],
+                rounds: [
+                    {
+                        round: 1,
+                        title: 'Algorithmic Bias & Launch Readiness',
+                        dilemma: 'Audits reveal a 12% accuracy drop for minority demographic records. What is your go-to-market decision?',
+                        options: [
+                            {
+                                text: 'Option A: Delay Launch by 6 Weeks for Dataset Retraining ($5M cost)',
+                                summary: 'Ensures algorithmic fairness and product safety, but angers board members demanding immediate release.',
+                                impact: { budget: -15, publicTrust: +20, sustainability: +20, gridReliability: +15, regulatoryCompliance: +20 },
+                                sentimentChange: { board: -30, tech_lead: +40, regulator: +25, advocate: +30 },
+                                consequence: 'Engineering team fixes the demographic bias. Tech press praises AuraTech for responsible AI leadership.'
+                            },
+                            {
+                                text: 'Option B: Launch On Schedule with Targeted Medical Disclaimers',
+                                summary: 'Release on time, adding warnings that human doctors must double-check minority cases.',
+                                impact: { budget: +20, publicTrust: -15, sustainability: -10, gridReliability: -10, regulatoryCompliance: -10 },
+                                sentimentChange: { board: +35, tech_lead: -25, regulator: -15, advocate: -25 },
+                                consequence: 'Commercial revenue targets are met, but medical ethicists heavily criticize the double-standard disclaimers.'
+                            },
+                            {
+                                text: 'Option C: Geographically Restrict Launch to Tested Markets',
+                                summary: 'Launch only in regions where dataset accuracy exceeds 98%.',
+                                impact: { budget: +5, publicTrust: 0, sustainability: +5, gridReliability: +5, regulatoryCompliance: +5 },
+                                sentimentChange: { board: -5, tech_lead: +10, regulator: +5, advocate: -5 },
+                                consequence: 'A moderate middle-ground decision that satisfies safety without total delay.'
+                            }
+                        ]
+                    },
+                    {
+                        round: 2,
+                        title: 'Data Collection & Patient Consent Strategy',
+                        dilemma: 'Regulators demand retroactive opt-in consent for 2 Million historical patient training profiles.',
+                        options: [
+                            {
+                                text: 'Option A: Purge Non-Consented Data & Rebuild Pipeline',
+                                summary: 'Guarantees 100% regulatory compliance, but reduces model performance temporarily.',
+                                impact: { budget: -20, publicTrust: +25, sustainability: +15, gridReliability: -10, regulatoryCompliance: +35 },
+                                sentimentChange: { board: -25, tech_lead: -10, regulator: +40, advocate: +35 },
+                                consequence: 'Federal regulators applaud AuraTech’s compliance, making it an industry gold standard.'
+                            },
+                            {
+                                text: 'Option B: Challenge Regulatory Interpretation in Court',
+                                summary: 'Argue that de-identified data falls under public interest research exemptions.',
+                                impact: { budget: -10, publicTrust: -20, sustainability: -20, gridReliability: +10, regulatoryCompliance: -35 },
+                                sentimentChange: { board: +15, tech_lead: -15, regulator: -45, advocate: -35 },
+                                consequence: 'Triggers a public legal battle with federal regulators; stock volatility increases.'
+                            },
+                            {
+                                text: 'Option C: Offer Patients Monetized Profit-Sharing for Data Consent',
+                                summary: 'Provide users $10 monthly health service credits in exchange for data licensing rights.',
+                                impact: { budget: -15, publicTrust: +10, sustainability: +5, gridReliability: +10, regulatoryCompliance: +15 },
+                                sentimentChange: { board: -10, tech_lead: +5, regulator: +10, advocate: +15 },
+                                consequence: 'Patients gladly opt-in, converting regulatory hurdle into a loyalty program.'
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        function App() {
+            const [selectedScenario, setSelectedScenario] = useState(SCENARIOS[0]);
+            const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, stakeholders, proposal, debrief
+            const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
+            
+            // Simulation State
+            const [metrics, setMetrics] = useState(SCENARIOS[0].initialMetrics);
+            const [stakeholders, setStakeholders] = useState(SCENARIOS[0].stakeholders);
+            const [history, setHistory] = useState([]);
+            const [isFinished, setIsFinished] = useState(false);
+            const [selectedStakeholder, setSelectedStakeholder] = useState(SCENARIOS[0].stakeholders[0]);
+            
+            // Custom Proposal Builder State
+            const [proposalParams, setProposalParams] = useState({
+                budgetAllocation: 50,
+                regulatorySafeguards: 50,
+                communityCompensation: 30,
+                executionSpeed: 60
+            });
+
+            // Handle switching scenario
+            const handleScenarioChange = (scenarioId) => {
+                const sc = SCENARIOS.find(s => s.id === scenarioId) || SCENARIOS[0];
+                setSelectedScenario(sc);
+                setMetrics(sc.initialMetrics);
+                setStakeholders(sc.stakeholders);
+                setSelectedStakeholder(sc.stakeholders[0]);
+                setCurrentRoundIndex(0);
+                setHistory([]);
+                setIsFinished(false);
+                setActiveTab('dashboard');
+            };
+
+            // Process Option Selection
+            const handleSelectOption = (option) => {
+                // Apply Metric Changes
+                const newMetrics = { ...metrics };
+                Object.keys(option.impact).forEach(key => {
+                    newMetrics[key] = Math.max(0, Math.min(100, (newMetrics[key] || 0) + option.impact[key]));
+                });
+
+                // Apply Stakeholder Sentiment Changes
+                const updatedStakeholders = stakeholders.map(sh => {
+                    const change = option.sentimentChange[sh.id] || 0;
+                    return {
+                        ...sh,
+                        sentiment: Math.max(-100, Math.min(100, sh.sentiment + change))
+                    };
+                });
+
+                // Log History
+                const logEntry = {
+                    round: currentRoundIndex + 1,
+                    dilemmaTitle: selectedScenario.rounds[currentRoundIndex].title,
+                    chosenOption: option.text,
+                    consequence: option.consequence,
+                    impact: option.impact,
+                    sentimentChange: option.sentimentChange
+                };
+
+                setMetrics(newMetrics);
+                setStakeholders(updatedStakeholders);
+                setHistory([...history, logEntry]);
+
+                // Update selected stakeholder reference
+                if (selectedStakeholder) {
+                    const updatedSel = updatedStakeholders.find(s => s.id === selectedStakeholder.id);
+                    if (updatedSel) setSelectedStakeholder(updatedSel);
+                }
+
+                // Advance Round or Finish
+                if (currentRoundIndex + 1 < selectedScenario.rounds.length) {
+                    setCurrentRoundIndex(currentRoundIndex + 1);
+                } else {
+                    setIsFinished(true);
+                    setActiveTab('debrief');
+                }
+            };
+
+            // Calculate overall alignment score (Weighted average of sentiments)
+            const overallAlignment = useMemo(() => {
+                const totalInfluence = stakeholders.reduce((acc, curr) => acc + curr.influence, 0);
+                const weightedSentiment = stakeholders.reduce((acc, curr) => acc + (curr.sentiment * curr.influence), 0);
+                return Math.round((weightedSentiment / (totalInfluence * 100)) * 100);
+            }, [stakeholders]);
+
+            // Helper function for sentiment color
+            const getSentimentColor = (val) => {
+                if (val >= 40) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+                if (val >= 0) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+                return 'text-rose-400 bg-rose-500/10 border-rose-500/30';
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+                    
+                    {/* TOP NAVBAR */}
+                    <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <div className="p-2 bg-indigo-600/20 border border-indigo-500/30 rounded-xl text-indigo-400">
+                                    <Icon name="users" className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h1 className="font-bold text-lg text-white leading-none">Stakeholder<span className="text-indigo-400">360</span></h1>
+                                    <p className="text-xs text-slate-400 mt-0.5">Interactive Multi-Stakeholder Simulation</p>
+                                </div>
+                            </div>
+
+                            {/* Scenario Switcher Selector */}
+                            <div className="flex items-center space-x-3">
+                                <span className="text-xs text-slate-400 hidden sm:inline">Active Scenario:</span>
+                                <select 
+                                    value={selectedScenario.id}
+                                    onChange={(e) => handleScenarioChange(e.target.value)}
+                                    className="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                                >
+                                    {SCENARIOS.map(s => (
+                                        <option key={s.id} value={s.id}>{s.title}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* MAIN CONTENT AREA */}
+                    <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col space-y-6">
+
+                        {/* SCENARIO HEADER BANNER */}
+                        <div className="glass-panel rounded-2xl p-6 border border-slate-800 relative overflow-hidden">
+                            <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <span className="inline-block px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-semibold uppercase tracking-wider mb-2">
+                                        Role: {selectedScenario.role}
+                                    </span>
+                                    <h2 className="text-2xl font-bold text-white">{selectedScenario.title}</h2>
+                                    <p className="text-sm text-slate-300 mt-1 max-w-3xl leading-relaxed">{selectedScenario.context}</p>
+                                </div>
+                                <div className="flex items-center gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                                    <div className="text-right">
+                                        <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Stakeholder Consensus</div>
+                                        <div className="text-2xl font-black text-indigo-400">{overallAlignment}%</div>
+                                    </div>
+                                    <div className="w-12 h-12 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 flex items-center justify-center font-bold text-sm">
+                                        R{currentRoundIndex + 1}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* NAVIGATION TABS */}
+                        <div className="flex space-x-2 border-b border-slate-800 pb-2">
+                            {[
+                                { id: 'dashboard', label: 'Decision Dashboard', icon: 'sliders' },
+                                { id: 'stakeholders', label: 'Stakeholder Interviews', icon: 'chat' },
+                                { id: 'proposal', label: 'Policy Studio', icon: 'building' },
+                                { id: 'debrief', label: 'Analytics & Debrief', icon: 'fileText', badge: isFinished ? 'Ready' : null }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === tab.id 
+                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' 
+                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                                    }`}
+                                >
+                                    <Icon name={tab.icon} className="w-4 h-4" />
+                                    <span>{tab.label}</span>
+                                    {tab.badge && (
+                                        <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-emerald-500 text-slate-950 font-bold rounded-full">
+                                            {tab.badge}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* TAB 1: DECISION DASHBOARD */}
+                        {activeTab === 'dashboard' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                
+                                {/* LEFT 2 COLUMNS: SIMULATION ROUND / DILEMMA */}
+                                <div className="lg:col-span-2 space-y-6">
+                                    {!isFinished ? (
+                                        <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-6">
+                                            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                                                <div>
+                                                    <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                                                        Decision Stage {currentRoundIndex + 1} of {selectedScenario.rounds.length}
+                                                    </span>
+                                                    <h3 className="text-xl font-bold text-white mt-1">
+                                                        {selectedScenario.rounds[currentRoundIndex].title}
+                                                    </h3>
+                                                </div>
+                                                <div className="px-3 py-1 rounded-full text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
+                                                    <Icon name="alertTriangle" className="w-3.5 h-3.5" />
+                                                    Action Required
+                                                </div>
+                                            </div>
+
+                                            <p className="text-slate-200 text-base font-medium leading-relaxed bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                                                "{selectedScenario.rounds[currentRoundIndex].dilemma}"
+                                            </p>
+
+                                            {/* STRATEGIC OPTIONS */}
+                                            <div className="space-y-4">
+                                                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Select Strategic Directive:</h4>
+                                                {selectedScenario.rounds[currentRoundIndex].options.map((opt, idx) => (
+                                                    <div 
+                                                        key={idx}
+                                                        onClick={() => handleSelectOption(opt)}
+                                                        className="glass-panel glass-panel-hover rounded-xl p-5 border border-slate-800 cursor-pointer transition-all hover:scale-[1.01] group"
+                                                    >
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div>
+                                                                <h5 className="font-bold text-indigo-300 group-hover:text-indigo-200 text-sm">
+                                                                    {opt.text}
+                                                                </h5>
+                                                                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                                                                    {opt.summary}
+                                                                </p>
+                                                            </div>
+                                                            <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shrink-0">
+                                                                <Icon name="chevronRight" className="w-4 h-4" />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Predicted Sentiment Shifts Preview */}
+                                                        <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap gap-2 text-[11px]">
+                                                            <span className="text-slate-500 font-semibold mr-1">Expected Sentiment Shifts:</span>
+                                                            {Object.entries(opt.sentimentChange).map(([shId, val]) => {
+                                                                const sh = stakeholders.find(s => s.id === shId);
+                                                                if (!sh) return null;
+                                                                return (
+                                                                    <span key={shId} className={`px-2 py-0.5 rounded font-mono font-medium ${val >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                                                        {sh.name.split(' ')[0]}: {val >= 0 ? `+${val}` : val}
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="glass-panel rounded-2xl p-8 border border-slate-800 text-center space-y-4">
+                                            <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+                                                <Icon name="award" className="w-8 h-8" />
+                                            </div>
+                                            <h3 className="text-2xl font-bold text-white">Scenario Completed!</h3>
+                                            <p className="text-sm text-slate-300 max-w-md mx-auto">
+                                                You have navigated all strategic dilemmas for this scenario. Review your comprehensive debrief and stakeholder coalition results.
+                                            </p>
+                                            <button 
+                                                onClick={() => setActiveTab('debrief')}
+                                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                                            >
+                                                View Analytical Debrief Report
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* DECISION HISTORY TIMELINE */}
+                                    {history.length > 0 && (
+                                        <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-4">
+                                            <h4 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                                <Icon name="fileText" className="w-4 h-4 text-indigo-400" />
+                                                Simulation Consequence History
+                                            </h4>
+                                            <div className="space-y-3">
+                                                {history.map((item, index) => (
+                                                    <div key={index} className="bg-slate-900/60 p-4 rounded-xl border border-slate-800/80 text-xs space-y-1">
+                                                        <div className="flex justify-between font-semibold text-slate-400">
+                                                            <span>Round {item.round}: {item.dilemmaTitle}</span>
+                                                        </div>
+                                                        <div className="text-indigo-300 font-medium">{item.chosenOption}</div>
+                                                        <p className="text-slate-300 italic pt-1">{item.consequence}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* RIGHT COLUMN: LIVE METRICS & STAKEHOLDER SENTIMENT CARDS */}
+                                <div className="space-y-6">
+                                    
+                                    {/* KEY METRICS GAUGES */}
+                                    <div className="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Project Performance Gauges</h4>
+                                        <div className="space-y-3">
+                                            {Object.entries(metrics).map(([key, value]) => {
+                                                const labelNames = {
+                                                    budget: 'Capital Budget Remaining ($M)',
+                                                    publicTrust: 'Public / Consumer Trust',
+                                                    sustainability: 'ESG / Sustainability Level',
+                                                    gridReliability: 'Operational Reliability',
+                                                    regulatoryCompliance: 'Regulatory Approval'
+                                                };
+                                                return (
+                                                    <div key={key} className="space-y-1">
+                                                        <div className="flex justify-between text-xs font-medium text-slate-300">
+                                                            <span>{labelNames[key] || key}</span>
+                                                            <span className="font-mono font-bold text-indigo-400">{value}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+                                                            <div 
+                                                                className={`h-full rounded-full transition-all duration-500 ${value > 60 ? 'bg-indigo-500' : value > 30 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                                                                style={{ width: `${value}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* STAKEHOLDER LIVE SENTIMENT LIST */}
+                                    <div className="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Stakeholder Sentiments</h4>
+                                            <span className="text-[10px] text-slate-500">Influence Weighted</span>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {stakeholders.map(sh => (
+                                                <div 
+                                                    key={sh.id}
+                                                    onClick={() => {
+                                                        setSelectedStakeholder(sh);
+                                                        setActiveTab('stakeholders');
+                                                    }}
+                                                    className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 hover:border-indigo-500/40 cursor-pointer transition-all flex items-center justify-between"
+                                                >
+                                                    <div className="flex items-center space-x-3">
+                                                        <span className="text-2xl">{sh.avatar}</span>
+                                                        <div>
+                                                            <h5 className="text-xs font-bold text-slate-200">{sh.name}</h5>
+                                                            <p className="text-[10px] text-slate-400">{sh.role}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-mono font-bold border ${getSentimentColor(sh.sentiment)}`}>
+                                                            {sh.sentiment > 0 ? `+${sh.sentiment}` : sh.sentiment}
+                                                        </span>
+                                                        <div className="text-[10px] text-slate-500 mt-0.5">Inf: {sh.influence}/10</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 2: STAKEHOLDER INTERVIEWS */}
+                        {activeTab === 'stakeholders' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* STAKEHOLDER SELECTOR SIDEBAR */}
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">Select Stakeholder to Interview</h4>
+                                    {stakeholders.map(sh => (
+                                        <div 
+                                            key={sh.id}
+                                            onClick={() => setSelectedStakeholder(sh)}
+                                            className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                                                selectedStakeholder?.id === sh.id
+                                                    ? 'bg-indigo-600/20 border-indigo-500 text-white'
+                                                    : 'glass-panel border-slate-800 text-slate-300 hover:border-slate-700'
+                                            }`}
+                                        >
+                                            <div className="flex items-center space-x-3">
+                                                <span className="text-3xl">{sh.avatar}</span>
+                                                <div>
+                                                    <h5 className="text-sm font-bold">{sh.name}</h5>
+                                                    <p className="text-xs text-slate-400">{sh.role}</p>
+                                                </div>
+                                            </div>
+                                            <span className={`text-xs px-2 py-0.5 rounded font-mono font-bold border ${getSentimentColor(sh.sentiment)}`}>
+                                                {sh.sentiment > 0 ? `+${sh.sentiment}` : sh.sentiment}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* INTERVIEW DIALOGUE CONSOLE */}
+                                {selectedStakeholder && (
+                                    <div className="lg:col-span-2 glass-panel rounded-2xl p-6 border border-slate-800 flex flex-col justify-between space-y-6">
+                                        <div className="space-y-6">
+                                            {/* HEADER */}
+                                            <div className="flex items-center space-x-4 border-b border-slate-800 pb-4">
+                                                <span className="text-4xl p-2 bg-slate-900 rounded-2xl border border-slate-800">{selectedStakeholder.avatar}</span>
+                                                <div>
+                                                    <h3 className="text-xl font-bold text-white">{selectedStakeholder.name}</h3>
+                                                    <p className="text-xs text-indigo-400 font-medium">{selectedStakeholder.role}</p>
+                                                    <div className="flex gap-4 mt-2 text-xs text-slate-400">
+                                                        <span>Priority: <strong className="text-slate-200">{selectedStakeholder.priority}</strong></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* CONCERN BANNER */}
+                                            <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-amber-300 text-xs space-y-1">
+                                                <span className="font-bold flex items-center gap-1.5">
+                                                    <Icon name="info" className="w-4 h-4" /> Core Constraint / Fear:
+                                                </span>
+                                                <p>{selectedStakeholder.concern}</p>
+                                            </div>
+
+                                            {/* CHAT BUBBLE */}
+                                            <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                                                <div className="text-xs text-indigo-400 font-semibold">{selectedStakeholder.name} says:</div>
+                                                <p className="text-slate-200 text-sm italic font-serif leading-relaxed">
+                                                    "{selectedStakeholder.dialogue.greeting}"
+                                                </p>
+                                            </div>
+
+                                            {/* INTERVIEW QUESTIONS */}
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Inquire & Investigate Stance:</h4>
+                                                {selectedStakeholder.dialogue.questions.map((q, idx) => (
+                                                    <details key={idx} className="group bg-slate-900/60 rounded-xl border border-slate-800 overflow-hidden text-xs">
+                                                        <summary className="p-3 font-semibold text-slate-300 cursor-pointer hover:bg-slate-800/50 flex justify-between items-center">
+                                                            <span>❓ "{q.text}"</span>
+                                                            <Icon name="chevronRight" className="w-4 h-4 group-open:rotate-90 transition-transform" />
+                                                        </summary>
+                                                        <div className="p-4 bg-slate-950/80 border-t border-slate-800 text-slate-300 leading-relaxed italic">
+                                                            💬 "{q.answer}"
+                                                        </div>
+                                                    </details>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* TAB 3: POLICY & PROPOSAL STUDIO */}
+                        {activeTab === 'proposal' && (
+                            <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-6">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white">Custom Compromise Policy Studio</h3>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        Test and model custom policy trade-offs to see how tweaking parameters affects overall stakeholder alignment before official submission.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* PARAMETER SLIDERS */}
+                                    <div className="space-y-6 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400">Policy Levers</h4>
+                                        
+                                        {/* Slider 1 */}
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-xs font-semibold">
+                                                <span className="text-slate-300">Capital Expenditure Allocation</span>
+                                                <span className="text-indigo-400">{proposalParams.budgetAllocation}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="0" max="100" 
+                                                value={proposalParams.budgetAllocation}
+                                                onChange={(e) => setProposalParams({...proposalParams, budgetAllocation: parseInt(e.target.value)})}
+                                                className="w-full accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer h-2"
+                                            />
+                                        </div>
+
+                                        {/* Slider 2 */}
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-xs font-semibold">
+                                                <span className="text-slate-300">Regulatory Oversight Guardrails</span>
+                                                <span className="text-indigo-400">{proposalParams.regulatorySafeguards}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="0" max="100" 
+                                                value={proposalParams.regulatorySafeguards}
+                                                onChange={(e) => setProposalParams({...proposalParams, regulatorySafeguards: parseInt(e.target.value)})}
+                                                className="w-full accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer h-2"
+                                            />
+                                        </div>
+
+                                        {/* Slider 3 */}
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-xs font-semibold">
+                                                <span className="text-slate-300">Community Offset & Compensation</span>
+                                                <span className="text-indigo-400">{proposalParams.communityCompensation}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="0" max="100" 
+                                                value={proposalParams.communityCompensation}
+                                                onChange={(e) => setProposalParams({...proposalParams, communityCompensation: parseInt(e.target.value)})}
+                                                className="w-full accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer h-2"
+                                            />
+                                        </div>
+
+                                        {/* Slider 4 */}
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-xs font-semibold">
+                                                <span className="text-slate-300">Project Implementation Pace</span>
+                                                <span className="text-indigo-400">{proposalParams.executionSpeed}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="0" max="100" 
+                                                value={proposalParams.executionSpeed}
+                                                onChange={(e) => setProposalParams({...proposalParams, executionSpeed: parseInt(e.target.value)})}
+                                                className="w-full accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer h-2"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* SIMULATED IMPACT PREVIEW */}
+                                    <div className="space-y-6 flex flex-col justify-between">
+                                        <div className="space-y-4">
+                                            <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400">Predicted Stakeholder Response Matrix</h4>
+                                            <div className="space-y-3">
+                                                {stakeholders.map(sh => {
+                                                    // Simple predictive formula for demonstration
+                                                    const simulatedApproval = Math.min(100, Math.max(0, 
+                                                        50 + (proposalParams.communityCompensation * 0.3) + (proposalParams.regulatorySafeguards * 0.2) - (proposalParams.executionSpeed * 0.2)
+                                                    ));
+                                                    return (
+                                                        <div key={sh.id} className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+                                                            <div className="flex items-center space-x-2">
+                                                                <span>{sh.avatar}</span>
+                                                                <span className="font-semibold">{sh.name}</span>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="text-slate-400">Simulated Likelihood of Vote:</span>
+                                                                <span className="font-mono font-bold text-indigo-400">{Math.round(simulatedApproval)}%</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300">
+                                            💡 <strong>Pedagogical Insight:</strong> Successful negotiators balance short-term speed with long-term trust safeguards. Higher community compensation boosts public approval but reduces total financial runway.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 4: DEBRIEF & ANALYTICS */}
+                        {activeTab === 'debrief' && (
+                            <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-6">
+                                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white">Student Strategic Debrief Report</h3>
+                                        <p className="text-xs text-slate-400 mt-1">Multi-Stakeholder Leadership Analysis & Performance Transcript</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => window.print()}
+                                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-2"
+                                    >
+                                        <Icon name="download" className="w-4 h-4" />
+                                        Export Report / Print
+                                    </button>
+                                </div>
+
+                                {/* SUMMARY KPI CARDS */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-center">
+                                        <div className="text-xs text-slate-400 uppercase font-semibold">Final Stakeholder Alignment</div>
+                                        <div className="text-3xl font-black text-indigo-400 mt-1">{overallAlignment}%</div>
+                                    </div>
+                                    <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-center">
+                                        <div className="text-xs text-slate-400 uppercase font-semibold">Leadership Archetype</div>
+                                        <div className="text-lg font-bold text-emerald-400 mt-1">
+                                            {overallAlignment > 60 ? 'Consensus Builder' : overallAlignment > 40 ? 'Pragmatic Technocrat' : 'Autocratic Risk-Taker'}
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-center">
+                                        <div className="text-xs text-slate-400 uppercase font-semibold">Decisions Executed</div>
+                                        <div className="text-3xl font-black text-slate-200 mt-1">{history.length} / {selectedScenario.rounds.length}</div>
+                                    </div>
+                                </div>
+
+                                {/* STAKEHOLDER CLOSING SENTIMENT AUDIT */}
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Final Stakeholder Relationships</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {stakeholders.map(sh => (
+                                            <div key={sh.id} className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex justify-between items-center text-xs">
+                                                <div className="flex items-center space-x-3">
+                                                    <span className="text-2xl">{sh.avatar}</span>
+                                                    <div>
+                                                        <h5 className="font-bold text-slate-200">{sh.name}</h5>
+                                                        <p className="text-slate-400">{sh.role}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={`px-2.5 py-1 rounded font-mono font-bold border ${getSentimentColor(sh.sentiment)}`}>
+                                                        {sh.sentiment > 0 ? `+${sh.sentiment}` : sh.sentiment}
+                                                    </span>
+                                                    <div className="text-[10px] text-slate-500 mt-1">
+                                                        {sh.sentiment >= 30 ? 'Strong Support' : sh.sentiment >= 0 ? 'Neutral Neutrality' : 'Opposed'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* DECISION LOG AUDIT */}
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Decision Audit Log</h4>
+                                    {history.length === 0 ? (
+                                        <p className="text-xs text-slate-500 italic">No decisions logged yet. Begin the scenario on the Decision Dashboard tab.</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {history.map((h, i) => (
+                                                <div key={i} className="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-xs space-y-1">
+                                                    <div className="font-bold text-indigo-400">Stage {h.round}: {h.dilemmaTitle}</div>
+                                                    <div className="text-slate-200 font-medium">Choice: {h.chosenOption}</div>
+                                                    <p className="text-slate-400 italic mt-1">{h.consequence}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
+                </div>
+            );
+        }
+
+        // Render App
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
