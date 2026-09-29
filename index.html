@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Crisis Consultant Console</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        
+        .chat-container {
+            height: calc(100vh - 320px);
+            min-height: 380px;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c7d2fe;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #818cf8;
+        }
+
+        .loading-dot {
+            animation: dot-flicker 1.4s infinite ease-in-out both;
+        }
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes dot-flicker {
+            0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .citation-badge {
+            font-size: 0.7rem;
+            transition: all 0.2s ease;
+        }
+        .citation-badge:hover {
+            transform: translateY(-1px);
+        }
+
+        .pulse-danger {
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col antialiased">
+
+    <!-- Top Banner & Dashboard Header -->
+    <header class="bg-indigo-900 text-white border-b border-indigo-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-indigo-700/60 rounded-lg border border-indigo-500/30">
+                        <i class="fa-solid font-bold fa-headset text-2xl text-indigo-300"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-xl font-bold tracking-tight">Volunteer Crisis Command Console</h1>
+                            <span class="px-2 py-0.5 text-xs font-semibold bg-red-500/20 text-red-300 border border-red-500/30 rounded-full flex items-center gap-1 pulse-danger">
+                                <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> ACTIVE CRISIS
+                            </span>
+                        </div>
+                        <p class="text-xs text-indigo-200">Global Athletics Championships • Emergency Operation Center</p>
+                    </div>
+                </div>
+
+                <!-- Live Metrics Bar -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div class="bg-indigo-950/60 p-2 rounded-lg border border-indigo-800/50">
+                        <span class="text-indigo-300 block text-[10px] uppercase font-semibold">Event Status</span>
+                        <span class="font-bold text-amber-300">Day 6 of 10</span>
+                    </div>
+                    <div class="bg-indigo-950/60 p-2 rounded-lg border border-indigo-800/50">
+                        <span class="text-indigo-300 block text-[10px] uppercase font-semibold">Attrition Rate</span>
+                        <span class="font-bold text-red-400" id="metric-attrition">15.0% <i class="fa-solid fa-arrow-up text-[10px]"></i></span>
+                    </div>
+                    <div class="bg-indigo-950/60 p-2 rounded-lg border border-indigo-800/50">
+                        <span class="text-indigo-300 block text-[10px] uppercase font-semibold">Morale Level</span>
+                        <span class="font-bold text-orange-400" id="metric-morale">CRITICAL</span>
+                    </div>
+                    <div class="bg-indigo-950/60 p-2 rounded-lg border border-indigo-800/50">
+                        <span class="text-indigo-300 block text-[10px] uppercase font-semibold">Key Deficits</span>
+                        <span class="font-bold text-indigo-100" id="metric-deficits">Logistics & Accreditation</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-3 sm:p-6 flex flex-col gap-4 overflow-hidden">
+        
+        <!-- Scenario Brief Banner -->
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-3 sm:p-4 rounded-r-xl shadow-sm text-xs sm:text-sm text-amber-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div class="flex items-start gap-2.5">
+                <i class="fa-solid fa-triangle-exclamation text-amber-600 text-lg mt-0.5"></i>
+                <div>
+                    <span class="font-bold text-amber-950">Current Incident Objective:</span> You are acting as the <strong>Senior Sport Management Consultant</strong>. Assist <strong>Sarah Chen</strong> (Volunteer Coordinator) in solving severe workforce burnout, misconduct allegations, and staffing shortages without destroying long-term legacy value.
+                </div>
+            </div>
+            <button id="reset-btn" class="text-xs bg-amber-200/60 hover:bg-amber-200 text-amber-900 px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap">
+                <i class="fa-solid fa-rotate-left"></i> Reset Scenario
+            </button>
+        </div>
+
+        <!-- Chat Container Panel -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col flex-grow overflow-hidden">
+            
+            <!-- Panel Header -->
+            <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <div class="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow">
+                            SC
+                        </div>
+                        <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white"></span>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800">Sarah Chen</h2>
+                        <p class="text-[11px] text-slate-500">Volunteer Coordinator • Global Athletics Championships</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button id="export-btn" class="text-xs text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 px-2.5 py-1.5 rounded-md border border-slate-200 transition flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> Export Log
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Log Messages -->
+            <div id="chat-log" class="chat-container p-4 sm:p-6 overflow-y-auto space-y-4 bg-slate-50/50 flex-grow">
+                <!-- Initial scenario message loaded via JS -->
+            </div>
+
+            <!-- Quick Strategy Suggestion Chips -->
+            <div class="px-4 py-2 bg-slate-100/80 border-t border-slate-200 overflow-x-auto">
+                <div class="flex items-center gap-2 whitespace-nowrap text-xs">
+                    <span class="text-slate-500 font-semibold text-[11px] flex items-center gap-1">
+                        <i class="fa-solid fa-lightbulb text-amber-500"></i> Strategic Options:
+                    </span>
+                    <button class="chip-btn bg-white hover:bg-indigo-50 hover:border-indigo-300 text-slate-700 border border-slate-200 px-3 py-1 rounded-full transition shadow-xs text-xs">
+                        Suspend VTL & conduct immediate welfare check
+                    </button>
+                    <button class="chip-btn bg-white hover:bg-indigo-50 hover:border-indigo-300 text-slate-700 border border-slate-200 px-3 py-1 rounded-full transition shadow-xs text-xs">
+                        Redeploy floaters & create flexible 4-hour shifts
+                    </button>
+                    <button class="chip-btn bg-white hover:bg-indigo-50 hover:border-indigo-300 text-slate-700 border border-slate-200 px-3 py-1 rounded-full transition shadow-xs text-xs">
+                        Establish dedicated recovery lounge with free meals
+                    </button>
+                </div>
+            </div>
+
+            <!-- Input Controls Area -->
+            <div class="p-3 sm:p-4 bg-white border-t border-slate-200">
+                <div class="flex items-end gap-2">
+                    <div class="relative flex-grow">
+                        <textarea id="chat-input" rows="2" 
+                            class="w-full p-3 pr-10 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-none outline-none" 
+                            placeholder="Type your strategic advice for Sarah Chen here..."></textarea>
+                    </div>
+
+                    <button id="send-btn" 
+                        class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition shadow-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span>Send</span>
+                        <i class="fa-solid fa-paper-plane text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Typing & Status Area -->
+                <div id="status-area" class="h-5 mt-1 text-xs text-slate-500 flex items-center justify-center"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script type="module">
+        const apiKey = ""; // Leave blank for Canvas runtime provisioning
+        const apiUrlBase = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        const VC_NAME = "Sarah Chen";
+        const CONSULTANT_NAME = "Consultant";
+
+        // Conversation history tracking
+        let chatHistory = [];
+
+        // System Persona & Simulation Guidelines
+        const systemInstruction = `You are Sarah Chen, the highly stressed but competent Volunteer Coordinator for the 'Global Athletics Championships'.
+Your role is to interact with a Sport Management consultant (the user) to resolve a major volunteer crisis. The core issues are: High Attrition (15% no-shows), severe Burnout, and a specific complaint against a Volunteer Team Leader (VTL) for mandatory overtime and discouraging breaks. The main goal is to stabilize the program and protect the event's volunteer legacy potential.
+
+RULES FOR RESPONSE:
+1. **Persona:** Respond strictly in the voice of Sarah Chen (Volunteer Coordinator). Use a conversational, urgent, direct, and professional tone.
+2. **State Management:** Always assume the consultant's latest suggestion has been *immediately implemented*.
+3. **Scenario Advancement:** Analyze the consultant's suggestion based on best practices in event operations, HR safeguarding, volunteer retention, and supervision quality. Report the *real-time outcome* with concrete numbers when appropriate:
+    * **Good Strategic Advice:** Report a *partial improvement* in one area (e.g., attrition dips down to 11% or morale slightly improves) but introduce a *new, secondary logistical or operational challenge* stemming from the successful action (e.g., "The VTL was suspended and volunteers feel heard, but now that stadium sector is leaderless and morning accreditation lines are backing up.").
+    * **Poor/Incomplete Advice:** Report that the crisis *worsened* or the action had *unintended negative consequences* (e.g., "The generic mass email caused panic, and 3 more key team leaders just submitted resignations.").
+    * **Keep Crisis Going:** Keep the dialogue going until all core issues (misconduct, burnout, attrition, and legacy impact) are thoroughly and strategically addressed.
+4. **Grounding:** Rely on grounded information and real-world major event volunteer coordination practices (like Olympic, Commonwealth, or World Championship standards).
+5. **Formatting:** Address the consultant directly. Keep paragraphs concise and suitable for a chat interface. Do not use Markdown headings (# or ##), but you can use bolding for emphasis.`;
+
+        const initialScenarioMessage = `Consultant, thank God you're online. We are on Day 6 of 10 and facing a major volunteer welfare breakdown.
+
+Attrition (no-shows) spiked to **15%** overnight, and I just received a serious anonymous complaint about a Main Stadium Volunteer Team Leader (VTL) forcing mandatory unpaid overtime and refusing break requests. The volunteer said team members are "exhausted and quitting en masse." We are now severely understaffed in Logistics and Accreditation.
+
+Our entire volunteer legacy is at risk. What is the **single most immediate, critical action** I must take right now?`;
+
+        // DOM elements
+        const chatLog = document.getElementById('chat-log');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const statusArea = document.getElementById('status-area');
+        const resetBtn = document.getElementById('reset-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const chipBtns = document.querySelectorAll('.chip-btn');
+
+        /**
+         * Sleep helper for exponential backoff
+         */
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        /**
+         * Robust fetch wrapper with backoff
+         */
+        async function fetchWithBackoff(payload) {
+            const maxRetries = 5;
+            let delay = 1000;
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrlBase, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        return await response.json();
+                    } else if (response.status === 429) {
+                        console.warn(`Rate limited (429). Retrying in ${delay}ms...`);
+                    } else {
+                        const errorBody = await response.json().catch(() => ({}));
+                        throw new Error(`API Error ${response.status}: ${errorBody.error?.message || 'Unknown response'}`);
+                    }
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                }
+                await sleep(delay);
+                delay *= 2;
+            }
+        }
+
+        /**
+         * Formats simple markdown-like text to clean HTML
+         */
+        function formatText(text) {
+            let formatted = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p class="mt-2">')
+                .replace(/\n/g, '<br>');
+            return `<p>${formatted}</p>`;
+        }
+
+        /**
+         * Renders a message bubble into the chat window
+         */
+        function renderMessage(text, sender, sources = []) {
+            const isVC = sender === 'coordinator';
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `flex gap-3 ${isVC ? 'justify-start' : 'justify-end'} text-xs sm:text-sm`;
+
+            const messageContent = document.createElement('div');
+            messageContent.className = `max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 shadow-sm ${
+                isVC 
+                    ? 'bg-white border border-slate-200 text-slate-800 rounded-tl-none' 
+                    : 'bg-indigo-600 text-white rounded-tr-none'
+            }`;
+
+            // Header info inside bubble
+            const headerDiv = document.createElement('div');
+            headerDiv.className = `flex items-center justify-between gap-4 mb-1.5 pb-1 border-b text-[11px] ${
+                isVC ? 'border-slate-100 text-slate-400' : 'border-indigo-500/50 text-indigo-200'
+            }`;
+            headerDiv.innerHTML = `
+                <span class="font-bold">${isVC ? VC_NAME : 'You (' + CONSULTANT_NAME + ')'}</span>
+                <span>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            `;
+
+            const bodyDiv = document.createElement('div');
+            bodyDiv.className = `leading-relaxed ${isVC ? 'text-slate-700' : 'text-indigo-50'}`;
+            bodyDiv.innerHTML = formatText(text);
+
+            messageContent.appendChild(headerDiv);
+            messageContent.appendChild(bodyDiv);
+
+            // Append citations if available
+            if (sources && sources.length > 0) {
+                const citationsDiv = document.createElement('div');
+                citationsDiv.className = 'mt-3 pt-2 border-t border-slate-100 space-y-1';
+                
+                const citationHeader = document.createElement('div');
+                citationHeader.className = 'text-[10px] font-semibold text-slate-400 flex items-center gap-1';
+                citationHeader.innerHTML = `<i class="fa-solid fa-magnifying-glass text-[9px]"></i> Grounded Sources:`;
+                citationsDiv.appendChild(citationHeader);
+
+                sources.forEach((src, idx) => {
+                    const link = document.createElement('a');
+                    link.href = src.uri;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                    link.className = "citation-badge inline-flex items-center gap-1 text-[11px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-md px-2 py-0.5 mr-1 mt-1 font-medium";
+                    link.innerHTML = `<i class="fa-solid fa-link text-[9px]"></i> ${src.title || 'Reference ' + (idx + 1)}`;
+                    citationsDiv.appendChild(link);
+                });
+                
+                messageContent.appendChild(citationsDiv);
+            }
+
+            // Avatar for VC
+            if (isVC) {
+                const avatar = document.createElement('div');
+                avatar.className = 'w-8 h-8 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold flex items-center justify-center shrink-0 text-xs shadow-xs';
+                avatar.textContent = 'SC';
+                messageWrapper.appendChild(avatar);
+                messageWrapper.appendChild(messageContent);
+            } else {
+                messageWrapper.appendChild(messageContent);
+            }
+
+            chatLog.appendChild(messageWrapper);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        function showLoading() {
+            statusArea.innerHTML = `
+                <div class="flex items-center space-x-1.5 text-indigo-600 font-medium">
+                    <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
+                    <span>Sarah is evaluating strategy & checking operational logs</span>
+                    <span class="loading-dot">.</span>
+                    <span class="loading-dot">.</span>
+                    <span class="loading-dot">.</span>
+                </div>
+            `;
+            sendBtn.disabled = true;
+            chatInput.disabled = true;
+        }
+
+        function hideLoading() {
+            statusArea.textContent = '';
+            sendBtn.disabled = false;
+            chatInput.disabled = false;
+            chatInput.focus();
+        }
+
+        async function sendMessage(inputOverride = null) {
+            const input = inputOverride || chatInput.value.trim();
+            if (!input) return;
+
+            // Render user advice
+            renderMessage(input, 'consultant');
+            if (!inputOverride) chatInput.value = '';
+
+            // Update chat history
+            chatHistory.push({ role: "user", parts: [{ text: input }] });
+
+            showLoading();
+
+            try {
+                // Construct contents array for API
+                const contents = chatHistory.map(msg => ({
+                    role: msg.role,
+                    parts: msg.parts
+                }));
+
+                const payload = {
+                    contents: contents,
+                    tools: [{ "google_search": {} }],
+                    systemInstruction: {
+                        parts: [{ text: systemInstruction }]
+                    }
+                };
+
+                const result = await fetchWithBackoff(payload);
+                const candidate = result?.candidates?.[0];
+
+                if (!candidate || !candidate.content?.parts?.[0]?.text) {
+                    throw new Error("Unable to parse coordinator response.");
+                }
+
+                const responseText = candidate.content.parts[0].text;
+
+                // Extract grounded citations
+                let sources = [];
+                const groundingMetadata = candidate.groundingMetadata;
+                if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                    sources = groundingMetadata.groundingAttributions
+                        .map(attr => ({
+                            uri: attr.web?.uri,
+                            title: attr.web?.title
+                        }))
+                        .filter(src => src.uri && src.title);
+                }
+
+                // Render Sarah's reply
+                renderMessage(responseText, 'coordinator', sources);
+
+                // Add response to history
+                chatHistory.push({ role: "model", parts: [{ text: responseText }] });
+
+                // Dynamic Metric Adjustments based on context simulation
+                updateMetrics(responseText);
+
+            } catch (error) {
+                console.error("Communication error:", error);
+                statusArea.innerHTML = `<span class="text-red-500 font-semibold"><i class="fa-solid fa-triangle-exclamation"></i> Communication error: ${error.message}</span>`;
+                chatHistory.pop(); // Revert last turn on error
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function updateMetrics(responseText) {
+            const text = responseText.toLowerCase();
+            const attritionElem = document.getElementById('metric-attrition');
+            const moraleElem = document.getElementById('metric-morale');
+
+            // Heuristic detection of attrition change from AI text
+            const match = text.match(/(\d{1,2}(?:\.\d)?)\%/);
+            if (match) {
+                attritionElem.innerHTML = `${match[1]}% <i class="fa-solid fa-arrows-up-down text-[10px]"></i>`;
+            }
+
+            if (text.includes('morale improved') || text.includes('relieved') || text.includes('applaud')) {
+                moraleElem.textContent = "STABILIZING";
+                moraleElem.className = "font-bold text-amber-400";
+            } else if (text.includes('panic') || text.includes('quit') || text.includes('worsened')) {
+                moraleElem.textContent = "SEVERE DANGER";
+                moraleElem.className = "font-bold text-red-500";
+            }
+        }
+
+        function initializeChat() {
+            chatLog.innerHTML = '';
+            chatHistory = [];
+            
+            // Initial scenario render
+            renderMessage(initialScenarioMessage, 'coordinator');
+            chatHistory.push({ role: "model", parts: [{ text: initialScenarioMessage }] });
+            
+            // Reset metrics display
+            document.getElementById('metric-attrition').innerHTML = `15.0% <i class="fa-solid fa-arrow-up text-[10px]"></i>`;
+            document.getElementById('metric-morale').textContent = "CRITICAL";
+            document.getElementById('metric-morale').className = "font-bold text-orange-400";
+
+            chatInput.focus();
+        }
+
+        // Attach Chip button clicks
+        chipBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                chatInput.value = btn.textContent.trim();
+                chatInput.focus();
+            });
+        });
+
+        // Event Listeners
+        sendBtn.addEventListener('click', () => sendMessage());
+
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!sendBtn.disabled) sendMessage();
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            if (confirm("Reset the crisis simulation back to Day 6 initial state?")) {
+                initializeChat();
+            }
+        });
+
+        exportBtn.addEventListener('click', () => {
+            if (chatHistory.length === 0) return;
+            const logText = chatHistory.map(entry => {
+                const role = entry.role === 'model' ? VC_NAME : CONSULTANT_NAME;
+                return `[${role}]:\n${entry.parts[0].text}\n\n----------------------------------------\n`;
+            }).join('\n');
+
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Volunteer_Crisis_Consultation_Log_${new Date().toISOString().slice(0,10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Window Load Initialization
+        window.onload = initializeChat;
+    </script>
+</body>
+</html>
